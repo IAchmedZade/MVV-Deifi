@@ -25,12 +25,12 @@ struct Passenger {
 	int needLine = 0;
 	int needDirection = 0;
 
-	Passenger(int id = -1, int timeToStartWorking = 900, std::pair<int, int> pos = {0,0}, 
+	Passenger(int id = -1, int timeToStartWorking = 900, std::pair<int, int> pos = {0,0},
 		int origin = 0, int dest = 0, int needLine = 0, int needDirection = 1) :
 		id(id),
-		timeToStartWorking(timeToStartWorking), 
-		pos(pos), 
-		origin(origin), 
+		timeToStartWorking(timeToStartWorking),
+		pos(pos),
+		origin(origin),
 		destination(dest),
 		needLine(needLine),
 		needDirection(needDirection) {}
@@ -185,14 +185,14 @@ struct Graph {
 				moveTrain(train);
 			}
 			else if (train.state == boarding) {
-				train.updateDestination();				
-				stations[train.destination.first].addIncomingTrain(train.id, train.destination.second);				
+				train.updateDestination();
+				stations[train.destination.first].addIncomingTrain(train.id, train.destination.second);
 				boardPassengers(train);
 				train.state = waiting;
 			}
 			else if (train.state == waiting) {
 				int nextId = stations[train.destination.first].nextInLine(train.direction);
-				if ((train.id == nextId || nextId == -1) && 
+				if ((train.id == nextId || nextId == -1) &&
 					stations[train.destination.first].isLaneAvailable(train.destination.second)) {
 					train.state = readyToMove;
 				}
@@ -235,7 +235,7 @@ struct Graph {
 			stations[train.destination.first].removeIncomingTrain(train.id, train.destination.second);
 			stations[train.destination.first].registerTrain(train.id, train.direction);
 			train.updatePositionAndDirection();
-			train.state = boarding;			
+			train.state = boarding;
 		}
 	}
 
@@ -243,8 +243,8 @@ struct Graph {
 		int currentStationId = stations[train.line[train.idx]].id;
 		for (auto& slave : slaves) {
 			if (!train.myPassengers.count(slave.id) &&
-				slave.origin == currentStationId && 
-				slave.needDirection == train.direction && 
+				slave.origin == currentStationId &&
+				slave.needDirection == train.direction &&
 				slave.needLine == train.myLine) {
 				train.myPassengers.insert(slave.id);
 			}
@@ -284,6 +284,15 @@ struct Graph {
 	void addPair(std::pair<int, int>& pos1, std::pair<int, int>&& pos2) {
 		pos1.first += pos2.first;
 		pos1.second += pos2.second;
+	}
+
+	std::string convertGameTime() {
+		int time = globalTime / 10;
+
+		int hours = (6 + time / 60) % 24;
+		int minutes = time - 60 * (time / 60);
+		std::string mins = minutes < 10 ? "0" + std::to_string(minutes) : std::to_string(minutes);
+		return std::to_string(hours) + ":" + mins;
 	}
 
 	int dist(std::pair<int, int>& pos1, std::pair<int, int>& pos2) {
@@ -387,7 +396,7 @@ class Trains : public olc::PixelGameEngine
 	Graph graph = Graph(3);
 	int _layer;
 	int counter;
-	
+
 	bool pauseGame = false;
 public:
 	Trains()
@@ -399,61 +408,29 @@ public:
 	{
 		Clear(olc::BLANK);
 
-		myDeifi.pos = std::pair<int, int>{ ScreenWidth() / 2, ScreenHeight() / 2 };
-		myDeifi.nBombs = 100;
-
-		std::pair<int, int> position = std::pair<int, int>{ ScreenWidth() / 2, ScreenHeight() / 2 };
-		 
-		mvvRep.id = 1;
-		mvvRep.pos.first = ScreenWidth() / 2;
-		mvvRep.pos.second = ScreenHeight() / 4;
-		mvvRep.oldPos = mvvRep.pos;
-		mvvRep.sprite = new olc::Sprite("./Sprites/Engel.png");
-		mvvRep.decal = new olc::Decal(mvvRep.sprite);
-		DrawAngel(mvvRep);
-
+		InitializeDeifiAndMvvRep();
 
 		DrawString(10, 10, "Score: ", olc::RED, 2);
 		DrawString(10, 40, "Time: ", olc::RED, 2);
 
-		myDeifi.sprite = new olc::Sprite("./Sprites/Deifi.png");
-		myDeifi.decal = new olc::Decal(myDeifi.sprite);
-		 
+
 		DrawGraphOfStations();
 		DrawAllTrains();
 		DrawDeifi();
+		DrawAngel(mvvRep);
 
 		return true;
 	}
 
 	bool OnUserUpdate(float fElapsedTime) override
 	{
-		
+
 		DisplayData();
 
 		if (!HandleUserInput())
 			return false;
-		
-		if (!mvvRep.queueOfDetonations.empty()) {
-			if (mvvRep.Move()) {
-				for (auto& train : graph.trains) {
-					if (train.blockade && train.blockade->pos == mvvRep.queueOfDetonations[0]) {
-						delete train.blockade->decal;
-						delete train.blockade->sprite;
-						train.blockade->sprite = new olc::Sprite("./Sprites/BlackBox.png");
-						train.blockade->decal = new olc::Decal(train.blockade->sprite);
-						train.blockade->pos = std::pair<int, int>{ ScreenWidth() ,ScreenHeight() };
-					}
-				}
-				for (auto it = graph.devilishBlockade.begin(); it != graph.devilishBlockade.end(); ++it) {
-					if ((*it)->pos == mvvRep.queueOfDetonations[0]) {
-						graph.devilishBlockade.erase(it);
-						break;
-					}
-				}
-				mvvRep.eraseFirstDetonation();
-			}
-		}
+
+		MoveMvvRep();
 
 		for (auto& blockade : graph.devilishBlockade) {
 			DrawBlockade(blockade);
@@ -464,8 +441,22 @@ public:
 		graph.handleTrains();
 		DrawAllTrains();
 
-		//EnableLayer(_layer, true);
 		return true;
+	}
+
+	void InitializeDeifiAndMvvRep() {
+		myDeifi.pos = std::pair<int, int>{ ScreenWidth() / 2, ScreenHeight() / 2 };
+		myDeifi.nBombs = 100;
+		myDeifi.sprite = new olc::Sprite("./Sprites/Deifi.png");
+		myDeifi.decal = new olc::Decal(myDeifi.sprite);
+
+		mvvRep.id = 1;
+		mvvRep.pos.first = ScreenWidth() / 2;
+		mvvRep.pos.second = ScreenHeight() / 4;
+		mvvRep.oldPos = mvvRep.pos;
+		mvvRep.sprite = new olc::Sprite("./Sprites/Engel.png");
+		mvvRep.decal = new olc::Decal(mvvRep.sprite);
+
 	}
 
 	void DisplayData() {
@@ -473,7 +464,7 @@ public:
 		DrawString(110, 10, std::to_string(graph.score), olc::RED, 2);
 		if (!(graph.globalTime % 10)) {
 			FillRect(110, 40, 200, 80, olc::BLANK);
-			DrawString(110, 40, std::to_string(graph.globalTime / 10), olc::RED, 2);
+			DrawString(110, 40, graph.convertGameTime(), olc::RED, 2);
 
 			if (!(graph.globalTime % 1000)) {
 				graph.generateSlaves();
@@ -520,6 +511,32 @@ public:
 			}
 		}
 		return true;
+	}
+
+	void MoveMvvRep() {
+		if (!mvvRep.queueOfDetonations.empty()) {
+			if (mvvRep.Move()) {
+				for (auto& train : graph.trains) {
+					if (train.blockade && train.blockade->pos == mvvRep.queueOfDetonations[0]) {
+						//Figure out how to delete sprites and decals in PixelGameEngine
+						delete train.blockade->decal;
+						delete train.blockade->sprite;
+						train.blockade->sprite = new olc::Sprite("./Sprites/BlackBox.png");
+						train.blockade->decal = new olc::Decal(train.blockade->sprite);
+						train.blockade->pos = std::pair<int, int>{ ScreenWidth() ,ScreenHeight() };
+						/*delete train.blockade;
+						train.blockade = nullptr;*/
+					}
+				}
+				for (auto it = graph.devilishBlockade.begin(); it != graph.devilishBlockade.end(); ++it) {
+					if ((*it)->pos == mvvRep.queueOfDetonations[0]) {
+						graph.devilishBlockade.erase(it);
+						break;
+					}
+				}
+				mvvRep.eraseFirstDetonation();
+			}
+		}
 	}
 
 	void DrawGraphOfStations() {
@@ -665,7 +682,7 @@ public:
 	void DrawConnections() {
 		for (int i = 0; i < graph.adjacencyList.size(); ++i) {
 			for (int idx : graph.adjacencyList[i]) {
-				DrawLine(graph.stations[i].pos.first, graph.stations[i].pos.second, 
+				DrawLine(graph.stations[i].pos.first, graph.stations[i].pos.second,
 					graph.stations[idx].pos.first, graph.stations[idx].pos.second, olc::RED);
 			}
 		}
@@ -715,19 +732,19 @@ public:
 			FillCircle(slave.pos.first, slave.pos.second, 3, olc::DARK_GREEN);
 		}
 	}
-	
+
 	void addPairs(std::pair<int, int>& current, std::pair<int, int>& toAdd) {
 		current.first += toAdd.first;
 		current.second += toAdd.second;
 	}
 
 	int dist(std::pair<int, int>& pos1, std::pair<int, int> pos2) {
-		return (int)sqrt((pos1.first - pos2.first) * (pos1.first - pos2.first) + 
+		return (int)sqrt((pos1.first - pos2.first) * (pos1.first - pos2.first) +
 			(pos1.second - pos2.second) * (pos1.second - pos2.second));
 	}
 
 	double preciseDist(std::pair<int, int>& pos1, std::pair<int, int> pos2) {
-		return sqrt(abs(pos1.first - pos2.first) * abs(pos1.first - pos2.first) + 
+		return sqrt(abs(pos1.first - pos2.first) * abs(pos1.first - pos2.first) +
 			abs(pos1.second - pos2.second) * abs(pos1.second - pos2.second));
 	}
 };
