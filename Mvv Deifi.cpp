@@ -381,7 +381,7 @@ struct Engel {
 };
 
 // Override base class with your custom functionality
-class Trains : public olc::PixelGameEngine
+class App : public olc::PixelGameEngine
 {
 	Deifi myDeifi;
 	Engel mvvRep;
@@ -394,12 +394,12 @@ class Trains : public olc::PixelGameEngine
 	olc::Decal* deifiDecal;
 
 	Graph graph = Graph(3);
-	int _layer;
-	int counter;
+	//int _layer;
+	//int counter;
 
 	bool pauseGame = false;
 public:
-	Trains()
+	App()
 	{
 		sAppName = "Trains";
 	}
@@ -412,6 +412,7 @@ public:
 
 		DrawString(10, 10, "Score: ", olc::RED, 2);
 		DrawString(10, 40, "Time: ", olc::RED, 2);
+		DrawString(10, 70, "Blocks: ", olc::RED, 2);
 
 		DrawGraphOfStations();
 		DrawAllTrains();
@@ -423,7 +424,6 @@ public:
 
 	bool OnUserUpdate(float fElapsedTime) override
 	{
-
 		DisplayData();
 
 		if (!HandleUserInput())
@@ -435,7 +435,7 @@ public:
 			DrawBlockade(blockade);
 		}
 
-		DrawObject(myDeifi, olc::vf2d{ 2.f,1.5f }, olc::Pixel(min(255, 80 + 5 * graph.score), 100, 150));
+		DrawObject(myDeifi, olc::vf2d{ 2.f,1.5f }, olc::Pixel(min(255, 80 + 2 * graph.score), 100, 150));
 		DrawObject(mvvRep);
 		graph.handleTrains();
 		DrawAllTrains();
@@ -478,6 +478,8 @@ public:
 				}
 			}
 		}
+		FillRect(110, 70, 200, 30, olc::BLANK);
+		DrawString(110, 70, std::to_string(myDeifi.nBombs), olc::RED, 2);
 	}
 
 	bool HandleUserInput()
@@ -500,7 +502,8 @@ public:
 		if (GetKey(olc::Key::DOWN).bHeld) {
 			MoveDeifi({ 0,5 });
 		}
-		if (GetKey(olc::Key::SPACE).bPressed && dist(myDeifi.pos, mvvRep.pos) > 20) {
+		if (GetKey(olc::Key::SPACE).bPressed && myDeifi.nBombs && dist(myDeifi.pos, mvvRep.pos) > 20) {
+			--myDeifi.nBombs;
 			graph.devilishBlockade.push_back(new DevilishBlockade(myDeifi.pos));
 			mvvRep.queueOfDetonations.push_back(myDeifi.pos);
 		}
@@ -718,13 +721,6 @@ public:
 		}
 	}
 
-	/*void DrawAngel(Engel& angel) {
-		DrawDecal(olc::vi2d{ angel.pos.first, angel.pos.second }, angel.decal); // Maybe scale  to { 2.f,2.f }
-
-	void DrawDeifi() {
-		DrawDecal(olc::vi2d{ myDeifi.pos.first, myDeifi.pos.second }, myDeifi.decal, { 2.f,2.f });
-	}*/
-
 	void MoveDeifi(std::pair<int, int> difference) {
 		addPairs(myDeifi.pos, difference);
 		DrawObject(myDeifi);
@@ -753,7 +749,7 @@ public:
 
 int main()
 {
-	Trains demo;
+	App demo;
 	if (demo.Construct(1024, 730, 4, 4))
 		demo.Start();
 	return 0;
