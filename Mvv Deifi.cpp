@@ -25,7 +25,7 @@ struct Passenger {
 	int needLine = 0;
 	int needDirection = 0;
 
-	Passenger(int id = -1, int timeToStartWorking = 900, std::pair<int, int> pos = {0,0},
+	Passenger(int id = -1, int timeToStartWorking = 900, std::pair<int, int> pos = { 0,0 },
 		int origin = 0, int dest = 0, int needLine = 0, int needDirection = 1) :
 		id(id),
 		timeToStartWorking(timeToStartWorking),
@@ -45,7 +45,7 @@ struct Station {
 	std::queue<int> queOnLane2;
 	std::pair<int, int> occupiedLanes{ -1,-1 };
 
-	Station(int id, std::pair<int,int>& pos): id(id), pos(pos) {}
+	Station(int id, std::pair<int, int>& pos) : id(id), pos(pos) {}
 
 	void registerTrain(int id, int direction) {
 		if (direction == 1) {
@@ -56,7 +56,7 @@ struct Station {
 		}
 	}
 
-	void unregisterTrain(int direction){
+	void unregisterTrain(int direction) {
 		if (direction == 1) {
 			occupiedLanes.first = -1;
 		}
@@ -80,7 +80,7 @@ struct Station {
 			queOnLane1.pop();
 			return true;
 		}
-		else{
+		else {
 			if (queOnLane2.empty() || queOnLane2.front() != trainId) return false;
 			queOnLane2.pop();
 			return true;
@@ -106,7 +106,7 @@ struct Station {
 	}
 
 	std::pair<int, int> lanePosition(int direction) {
-		return { pos.first, pos.second + direction * height - 5};
+		return { pos.first, pos.second + direction * height - 5 };
 	}
 };
 
@@ -136,17 +136,17 @@ struct Train {
 
 	void updateDestination() {
 		if ((idx == 0 && direction == -1) || (idx == line.size() - 1 && direction == 1)) {
-			destination = std::pair<int,int> { line[idx], -direction };
+			destination = std::pair<int, int>{ line[idx], -direction };
 		}
 		else
-			destination = std::pair<int,int> { line[idx + direction], direction };
+			destination = std::pair<int, int>{ line[idx + direction], direction };
 	}
 
 	bool isBlocked(std::pair<int, int>& movementVector) {
 		return dist(addPair(pos, movementVector), blockade->pos) < 20;
 	}
 
-	std::pair<int,int> addPair(std::pair<int, int>& pos1, std::pair<int, int>& pos2) {
+	std::pair<int, int> addPair(std::pair<int, int>& pos1, std::pair<int, int>& pos2) {
 		return { pos1.first + pos2.first, pos1.second + pos2.second };
 	}
 
@@ -332,7 +332,7 @@ struct Engel {
 			if (!path.size() && pos != queueOfDetonations[0]) {
 				generatePath();
 			}
-			else if(path.size()) {
+			else if (path.size()) {
 				pos = path.back();
 				path.pop_back();
 
@@ -371,12 +371,12 @@ struct Engel {
 	}
 
 	void eraseFirstDetonation() {
-		if(queueOfDetonations.size())
+		if (queueOfDetonations.size())
 			queueOfDetonations.erase(queueOfDetonations.begin());
 	}
 
 	double dist(std::pair<int, int>& pos1, std::pair<int, int>& pos2) {
-		return sqrt(abs(pos1.first - pos2.first)* abs(pos1.first - pos2.first) + abs(pos1.second - pos2.second)* abs(pos1.second - pos2.second));
+		return sqrt(abs(pos1.first - pos2.first) * abs(pos1.first - pos2.first) + abs(pos1.second - pos2.second) * abs(pos1.second - pos2.second));
 	}
 };
 
@@ -407,17 +407,16 @@ public:
 	bool OnUserCreate() override
 	{
 		Clear(olc::BLANK);
-
+		DrawInstructions();
 		InitializeDeifiAndMvvRep();
 
 		DrawString(10, 10, "Score: ", olc::RED, 2);
 		DrawString(10, 40, "Time: ", olc::RED, 2);
 
-
 		DrawGraphOfStations();
 		DrawAllTrains();
-		DrawDeifi();
-		DrawAngel(mvvRep);
+		DrawObject(myDeifi, olc::vf2d{ 2.f,1.5f });
+		DrawObject(mvvRep);
 
 		return true;
 	}
@@ -436,12 +435,18 @@ public:
 			DrawBlockade(blockade);
 		}
 
-		DrawDeifi();
-		DrawAngel(mvvRep);
+		DrawObject(myDeifi, olc::vf2d{ 2.f,1.5f }, olc::Pixel(min(255, 80 + 5 * graph.score), 100, 150));
+		DrawObject(mvvRep);
 		graph.handleTrains();
 		DrawAllTrains();
 
 		return true;
+	}
+
+	void DrawInstructions() {
+		DrawString(ScreenWidth() / 2 - 50, 20, "Press arrow keys to Move");
+		DrawString(ScreenWidth() / 2 - 50, 40, "Press space to setup blockade");
+		DrawString(ScreenWidth() / 2 - 50, 60, "Press escape to exit");
 	}
 
 	void InitializeDeifiAndMvvRep() {
@@ -668,6 +673,11 @@ public:
 		DrawStation(graph.stations.back());
 	}
 
+	template<typename T>
+	void DrawObject(T& obj, const olc::vf2d& scale = { 1.f,1.f }, const olc::Pixel& tint = olc::WHITE) {
+		DrawDecal(olc::vi2d{ obj.pos.first, obj.pos.second }, obj.decal, scale, tint);
+	}
+
 	void DrawStation(Station& station) {
 		FillRect(station.pos.first - 5, station.pos.second - 5, 30, 10, olc::RED);
 		int cnt = 0;
@@ -708,19 +718,16 @@ public:
 		}
 	}
 
-	void DrawAngel(Engel& angel) {
+	/*void DrawAngel(Engel& angel) {
 		DrawDecal(olc::vi2d{ angel.pos.first, angel.pos.second }, angel.decal); // Maybe scale  to { 2.f,2.f }
-	}
 
 	void DrawDeifi() {
-		//FillCircle(myDeifi.pos.first, myDeifi.pos.second, 5, olc::MAGENTA);
 		DrawDecal(olc::vi2d{ myDeifi.pos.first, myDeifi.pos.second }, myDeifi.decal, { 2.f,2.f });
-	}
+	}*/
 
 	void MoveDeifi(std::pair<int, int> difference) {
-		//FillCircle(myDeifi.pos.first, myDeifi.pos.second, 5, olc::BLANK);
 		addPairs(myDeifi.pos, difference);
-		DrawDeifi();
+		DrawObject(myDeifi);
 	}
 
 	void DrawBlockade(DevilishBlockade* blockade) {
@@ -742,17 +749,12 @@ public:
 		return (int)sqrt((pos1.first - pos2.first) * (pos1.first - pos2.first) +
 			(pos1.second - pos2.second) * (pos1.second - pos2.second));
 	}
-
-	double preciseDist(std::pair<int, int>& pos1, std::pair<int, int> pos2) {
-		return sqrt(abs(pos1.first - pos2.first) * abs(pos1.first - pos2.first) +
-			abs(pos1.second - pos2.second) * abs(pos1.second - pos2.second));
-	}
 };
 
 int main()
 {
 	Trains demo;
-	if (demo.Construct(1024, 730,4, 4))
+	if (demo.Construct(1024, 730, 4, 4))
 		demo.Start();
 	return 0;
 }
