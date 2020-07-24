@@ -10,8 +10,7 @@ enum State {
 
 struct DevilishBlockade {
 	std::pair<int, int> pos;
-	olc::Sprite* sprite = new olc::Sprite("./Sprites/Blockade.png");
-	olc::Decal* decal = new olc::Decal(sprite);
+	olc::Decal* decal = new olc::Decal(new olc::Sprite("./Sprites/Blockade.png"));
 
 	DevilishBlockade(std::pair<int, int>& pos) : pos(pos) {}
 };
@@ -111,7 +110,6 @@ struct Station {
 };
 
 struct Train {
-	olc::Sprite* sprite;
 	olc::Decal* decal;
 	DevilishBlockade* blockade;
 
@@ -124,6 +122,15 @@ struct Train {
 	int idx = 0;
 	int direction = 1;
 	std::pair<int, int> pos;
+
+	Train() {}
+
+	Train(int id, std::pair<int, int>& pos, State state, int direction, int myLine) :
+		id(id),
+		pos(pos),
+		state(state),
+		direction(direction),
+		myLine(myLine) {}
 
 	void updatePositionAndDirection() {
 		if ((idx == 0 && direction == -1) || (idx == line.size() - 1 && direction == 1)) {
@@ -164,12 +171,66 @@ struct Graph {
 	std::vector<DevilishBlockade*> devilishBlockade;
 	std::vector<Passenger> slaves;
 	std::vector<Station> stations;
+	std::vector<std::pair<int, int>> nodes;
 	std::vector<std::vector<int>> adjacencyList;
 	int stepsize = 10;
 
-	Graph(int nTrains) {
-		trains.resize(nTrains);
-		//slaves.resize(100);
+	Graph() {}
+
+	Graph(int nTrains, int width, int height) {
+		std::pair<int, int> dummy{ width, height };
+		for (int id = 0; id < nTrains;++id) {
+			trains.push_back(Train(id, dummy, boarding, 1, id));
+		}
+		int x = width / 2;
+		int y = height / 2;
+		int spacing = 40;
+		// Construct all nodes and edges:
+		for (int col = 0; col < 19; ++col) {
+			nodes.emplace_back(x + spacing * (col - 12), y);
+			stations.emplace_back(col, nodes.back());
+		}
+		for (int row = 1; row <= 6; ++row) {
+			nodes.emplace_back(x - 7 * spacing, y + row * spacing);
+			stations.emplace_back(18 + row, nodes.back());
+		}
+		for (int row = 1; row <= 6; ++row) {
+			nodes.emplace_back(x - 4 * spacing, y + spacing * row);
+			stations.emplace_back(24 + row, nodes.back());
+		}
+		for (int row = 4; row > 0; --row) {
+			nodes.emplace_back(x + 3 * spacing, y + row * spacing);
+			stations.emplace_back(31 + 4 - row, nodes.back());
+		}
+		for (int row = -1; row >= -5; --row) {
+			nodes.emplace_back(x + 3 * spacing, y + spacing * row);
+			stations.emplace_back(35 - 1 - row, nodes.back());
+		}
+		for (int lambda = 1; lambda <= 3; ++lambda) {
+			nodes.emplace_back(x - (7 + lambda) * spacing, y + (1 + lambda) * spacing);
+			stations.emplace_back(39 + lambda, nodes.back());
+		}
+		for (int lambda = 1; lambda <= 5; ++lambda) {
+			nodes.emplace_back(x - (7 + lambda) * spacing, y - lambda * spacing);
+			stations.emplace_back(42 + lambda, nodes.back());
+		}
+		for (int lambda = 1; lambda <= 3; ++lambda) {
+			nodes.emplace_back(x + (3 + lambda) * spacing, y + (1 + lambda) * spacing);
+			stations.emplace_back(47 + lambda, nodes.back());
+		}
+		for (int lambda = 1; lambda <= 3; ++lambda) {
+			nodes.emplace_back(x + (3 + lambda) * spacing, y - lambda * spacing);
+			stations.emplace_back(50 + lambda, nodes.back());
+		}
+		// Add Lines to trains
+		trains[0].line = std::vector<int>{ 42,41,40,19,5,6,7,8,9,10,11,12,13,14,15,35,36,37,38,39 };
+		trains[1].line = std::vector<int>{ 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18 };
+		trains[2].line = std::vector<int>{ 47,46,45,44,43,5,6,7,8,9,10,11,12,13,14,15,51,52,53 };
+		trains[3].line = std::vector<int>{ 24,23,22,21,20,19,5,6,7,8,9,10,11,12,13,14,15,34,33,32,31 };
+		trains[4].line = std::vector<int>{ 30,29,28,27,26,25,8,9,10,11,12,13,14,15,34,48,49,50 };
+		for (auto& train : trains) {
+			train.pos = stations[train.line[0]].lanePosition(1);
+		}
 	}
 
 	void handleTrains() {
@@ -221,8 +282,10 @@ struct Graph {
 	void moveTrain(Train& train) {
 		std::pair<int, int> target = stations[train.destination.first].lanePosition(train.destination.second);
 		std::pair<int, int> origin = stations[train.line[train.idx]].lanePosition(train.direction);
+		std::pair<int, int> vectorOfMovement = target;
+		substractPair(vectorOfMovement, origin);
 
-		addPair(train.pos, { (target.first - origin.first) / stepsize,(target.second - origin.second) / stepsize });
+		addPair(train.pos, { vectorOfMovement.first / stepsize, vectorOfMovement.second / stepsize });
 
 		if (dist(train.pos, target) < 10) {
 			train.pos = target;
@@ -281,9 +344,14 @@ struct Graph {
 		}
 	}
 
-	void addPair(std::pair<int, int>& pos1, std::pair<int, int>&& pos2) {
+	void addPair(std::pair<int, int>& pos1, const std::pair<int, int>& pos2) {
 		pos1.first += pos2.first;
 		pos1.second += pos2.second;
+	}
+
+	void substractPair(std::pair<int, int>& pos1, const std::pair<int, int>& pos2) {
+		pos1.first -= pos2.first;
+		pos1.second -= pos2.second;
 	}
 
 	std::string convertGameTime() {
@@ -380,7 +448,6 @@ struct Engel {
 	}
 };
 
-// Override base class with your custom functionality
 class App : public olc::PixelGameEngine
 {
 	Deifi myDeifi;
@@ -393,9 +460,7 @@ class App : public olc::PixelGameEngine
 	olc::Sprite* deifiSprite;
 	olc::Decal* deifiDecal;
 
-	Graph graph = Graph(3);
-	//int _layer;
-	//int counter;
+	Graph graph;
 
 	bool pauseGame = false;
 public:
@@ -406,6 +471,7 @@ public:
 
 	bool OnUserCreate() override
 	{
+		graph = Graph(5, ScreenWidth(), ScreenHeight());
 		Clear(olc::BLANK);
 		DrawInstructions();
 		InitializeDeifiAndMvvRep();
@@ -424,6 +490,8 @@ public:
 
 	bool OnUserUpdate(float fElapsedTime) override
 	{
+		//DrawGraphOfStations();
+
 		DisplayData();
 
 		if (!HandleUserInput())
@@ -484,6 +552,10 @@ public:
 
 	bool HandleUserInput()
 	{
+		if (GetKey(olc::Key::O).bHeld) {
+			DrawRotatedDecal(olc::vi2d{ myDeifi.pos.first, myDeifi.pos.second }, myDeifi.decal, graph.globalTime % 360,
+				{ 10.f,10.f }, { 2.f,2.f });
+		}
 		if (GetKey(olc::Key::ESCAPE).bPressed) {
 			return false;
 		}
@@ -511,9 +583,7 @@ public:
 			for (auto& train : graph.trains) {
 				if (train.blockade) {
 					delete train.blockade->decal;
-					delete train.blockade->sprite;
-					train.blockade->sprite = new olc::Sprite("./Sprites/BlackBox.png");
-					train.blockade->decal = new olc::Decal(train.blockade->sprite);
+					train.blockade->decal = new olc::Decal(new olc::Sprite("./Sprites/BlackBox.png"));
 					train.blockade->pos = std::pair<int, int>{ 0,0 };
 				}
 			}
@@ -528,12 +598,8 @@ public:
 					if (train.blockade && train.blockade->pos == mvvRep.queueOfDetonations[0]) {
 						//Figure out how to delete sprites and decals in PixelGameEngine
 						delete train.blockade->decal;
-						delete train.blockade->sprite;
-						train.blockade->sprite = new olc::Sprite("./Sprites/BlackBox.png");
-						train.blockade->decal = new olc::Decal(train.blockade->sprite);
+						train.blockade->decal = new olc::Decal(new olc::Sprite("./Sprites/BlackBox.png"));
 						train.blockade->pos = std::pair<int, int>{ ScreenWidth() ,ScreenHeight() };
-						/*delete train.blockade;
-						train.blockade = nullptr;*/
 					}
 				}
 				for (auto it = graph.devilishBlockade.begin(); it != graph.devilishBlockade.end(); ++it) {
@@ -548,10 +614,9 @@ public:
 	}
 
 	void DrawGraphOfStations() {
-
-		int x = ScreenWidth() / 2 - 300;
-		int y = ScreenHeight() / 2 - 10;
-
+		/*
+		int x = ScreenWidth() / 2;
+		int y = ScreenHeight() / 2;
 		std::pair<int, int> position{ x,y };
 		graph.adjacencyList.resize(20);
 		int midIdx = 12;
@@ -645,7 +710,7 @@ public:
 			++midIdx;
 		}
 
-		DrawConnections();
+		//DrawConnections();
 		{
 			graph.trains[0].id = 0;
 			graph.trains[0].myLine = 0;
@@ -665,15 +730,15 @@ public:
 			graph.trains[2].pos = graph.stations[graph.trains[2].line[0]].lanePosition(1);
 			graph.trains[2].state = boarding;
 		}
+		*/
 		for (auto& train : graph.trains) {
-			train.sprite = new olc::Sprite("./Sprites/SBahn.png");
-			train.decal = new olc::Decal(train.sprite);
+			train.decal = new olc::Decal(new olc::Sprite("./Sprites/SBahn.png"));
 		}
 	}
 
 	void AddStation(std::pair<int, int>& pos, int id) {
 		graph.stations.emplace_back(id, pos);
-		DrawStation(graph.stations.back());
+		//DrawStation(graph.stations.back());
 	}
 
 	template<typename T>
@@ -686,7 +751,7 @@ public:
 		int cnt = 0;
 		for (auto& slave : graph.slaves) {
 			if (slave.pos == station.pos) {
-				FillCircle(station.pos.first + cnt * 3, station.pos.second, 3, olc::GREEN);
+				FillCircle(station.pos.first + cnt * 5, station.pos.second, 3, olc::GREEN);
 				++cnt;
 			}
 		}
