@@ -855,7 +855,7 @@ public:
 int main()
 {
 	App game;
-	if (game.Construct(1024, 730, 1, 1))
+	if (game.Construct(1024, 730, 4, 4))
 		game.Start();
 	return 0;
 }
