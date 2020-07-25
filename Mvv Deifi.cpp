@@ -36,15 +36,19 @@ struct Passenger {
 };
 
 struct Station {
+	olc::Decal* decal = new olc::Decal(new olc::Sprite("./Sprites/Station.png"));
 	int id = -1;
 	int width = 15;
 	int height = 15;
+	float angle = 0.f;
+
 	std::pair<int, int> pos;
 	std::queue<int> queOnLane1;
 	std::queue<int> queOnLane2;
 	std::pair<int, int> occupiedLanes{ -1,-1 };
 
-	Station(int id, std::pair<int, int>& pos) : id(id), pos(pos) {}
+
+	Station(int id, std::pair<int, int>& pos, float angle = 0.f) : id(id), pos(pos), angle(angle) {}
 
 	void registerTrain(int id, int direction) {
 		if (direction == 1) {
@@ -105,13 +109,26 @@ struct Station {
 	}
 
 	std::pair<int, int> lanePosition(int direction) {
-		return { pos.first, pos.second + direction * height - 5 };
+		int x; int y;
+		if (direction < 0)
+		{
+			x = decal->sprite->width / 3;
+			y = 3 * decal->sprite->height / 2;
+		}
+		else
+		{
+			x = decal->sprite->width / 3;
+			y = (-3) * decal->sprite->height / 2;
+		}
+		return std::pair<int, int>{ pos.first + cos(angle) * x - sin(angle) * y,
+			pos.second + sin(angle) * x + cos(angle) * y};
 	}
 };
 
 struct Train {
 	olc::Decal* decal;
 	DevilishBlockade* blockade;
+	float angle = 0.f;
 
 	int id;
 	std::vector<int> line;
@@ -192,35 +209,35 @@ struct Graph {
 		}
 		for (int row = 1; row <= 6; ++row) {
 			nodes.emplace_back(x - 7 * spacing, y + row * spacing);
-			stations.emplace_back(18 + row, nodes.back());
+			stations.emplace_back(18 + row, nodes.back(), 3.141f / 2.f);
 		}
 		for (int row = 1; row <= 6; ++row) {
 			nodes.emplace_back(x - 4 * spacing, y + spacing * row);
-			stations.emplace_back(24 + row, nodes.back());
+			stations.emplace_back(24 + row, nodes.back(), 3.141f / 2.f);
 		}
 		for (int row = 4; row > 0; --row) {
 			nodes.emplace_back(x + 3 * spacing, y + row * spacing);
-			stations.emplace_back(31 + 4 - row, nodes.back());
+			stations.emplace_back(31 + 4 - row, nodes.back(), 3.141f / 2.f);
 		}
 		for (int row = -1; row >= -5; --row) {
 			nodes.emplace_back(x + 3 * spacing, y + spacing * row);
-			stations.emplace_back(35 - 1 - row, nodes.back());
+			stations.emplace_back(35 - 1 - row, nodes.back(), 3.141f / 2.f);
 		}
 		for (int lambda = 1; lambda <= 3; ++lambda) {
 			nodes.emplace_back(x - (7 + lambda) * spacing, y + (1 + lambda) * spacing);
-			stations.emplace_back(39 + lambda, nodes.back());
+			stations.emplace_back(39 + lambda, nodes.back(), 3.f * 3.141f / 4.f);
 		}
 		for (int lambda = 1; lambda <= 5; ++lambda) {
 			nodes.emplace_back(x - (7 + lambda) * spacing, y - lambda * spacing);
-			stations.emplace_back(42 + lambda, nodes.back());
+			stations.emplace_back(42 + lambda, nodes.back(), 5.f * 3.141f / 4.f);
 		}
 		for (int lambda = 1; lambda <= 3; ++lambda) {
 			nodes.emplace_back(x + (3 + lambda) * spacing, y + (1 + lambda) * spacing);
-			stations.emplace_back(47 + lambda, nodes.back());
+			stations.emplace_back(47 + lambda, nodes.back(), 3.141f / 4.f);
 		}
 		for (int lambda = 1; lambda <= 3; ++lambda) {
 			nodes.emplace_back(x + (3 + lambda) * spacing, y - lambda * spacing);
-			stations.emplace_back(50 + lambda, nodes.back());
+			stations.emplace_back(50 + lambda, nodes.back(), 7.f * 3.141f / 4.f);
 		}
 		// Add Lines to trains
 		trains[0].line = std::vector<int>{ 42,41,40,19,5,6,7,8,9,10,11,12,13,14,15,35,36,37,38,39 };
@@ -282,13 +299,13 @@ struct Graph {
 	void moveTrain(Train& train) {
 		std::pair<int, int> target = stations[train.destination.first].lanePosition(train.destination.second);
 		std::pair<int, int> origin = stations[train.line[train.idx]].lanePosition(train.direction);
-		std::pair<int, int> vectorOfMovement = target;
-		substractPair(vectorOfMovement, origin);
 
-		addPair(train.pos, { vectorOfMovement.first / stepsize, vectorOfMovement.second / stepsize });
+		addPair(train.pos, { (target.first - origin.first) / stepsize, (target.second - origin.second) / stepsize });
 
 		if (dist(train.pos, target) < 10) {
 			train.pos = target;
+			train.angle = stations[train.destination.first].angle;
+
 			if (train.idx == 0 || train.idx == train.line.size() - 1) {
 				stations[train.line[train.idx]].occupiedLanes = std::pair<int, int>{ -1,-1 };
 			}
@@ -454,6 +471,8 @@ class App : public olc::PixelGameEngine
 	Engel mvvRep;
 	std::vector<Bomb> tickingBombs;
 	std::vector<std::pair<int, int>> detonations;
+	olc::Sprite* spr;
+
 
 	int placeholder = 0;
 
@@ -507,6 +526,8 @@ public:
 		DrawObject(mvvRep);
 		graph.handleTrains();
 		DrawAllTrains();
+
+		for (auto& station : graph.stations) DrawStation(station);
 
 		return true;
 	}
@@ -747,7 +768,17 @@ public:
 	}
 
 	void DrawStation(Station& station) {
-		FillRect(station.pos.first - 5, station.pos.second - 5, 30, 10, olc::RED);
+		DrawRotatedDecal(olc::vf2d{ (float)station.pos.first, (float)station.pos.second },
+			station.decal, station.angle);
+		/*
+		if (station.angle) {
+			//FillRect(station.pos.first - 5, station.pos.second - 5, 30, 10, olc::RED);
+			DrawRotatedDecal(olc::vf2d{ (float)station.pos.first, (float)station.pos.second },
+				station.decal, station.angle);
+		}
+		else if (!station.angle) {
+			FillRect(station.pos.first - 5, station.pos.second - 5, 30, 10, olc::RED);
+		}*/
 		int cnt = 0;
 		for (auto& slave : graph.slaves) {
 			if (slave.pos == station.pos) {
@@ -767,13 +798,22 @@ public:
 	}
 
 	void DrawTrain(Train& train) {
-		if (train.myPassengers.size()) {
-			DrawDecal(olc::vi2d{ train.pos.first, train.pos.second }, train.decal, { 1.2f,1.2f },
-				olc::Pixel(200, 200, 200));
+		if (train.angle) {
+			spr = new olc::Sprite("./Sprites/SBahn.png");
+			DrawRotatedDecal(olc::vi2d{ train.pos.first, train.pos.second }, train.decal, train.angle,
+				olc::vf2d{ (float)(train.decal->sprite->width) / 2.f, (float)(train.decal->sprite->height) / 2.f }
+			);
+			//olc::vf2d{ (float)(spr->width / 2),(float)(spr->height / 2) });
 		}
 		else {
-			DrawDecal(olc::vi2d{ train.pos.first, train.pos.second }, train.decal, { 1.2f,1.2f },
-				olc::Pixel(100, 100, 150));
+			if (train.myPassengers.size()) {
+				DrawDecal(olc::vi2d{ train.pos.first, train.pos.second }, train.decal, { 1.2f,1.2f },
+					olc::Pixel(200, 200, 200));
+			}
+			else {
+				DrawDecal(olc::vi2d{ train.pos.first, train.pos.second }, train.decal, { 1.2f,1.2f },
+					olc::Pixel(100, 100, 150));
+			}
 		}
 	}
 
@@ -814,8 +854,8 @@ public:
 
 int main()
 {
-	App demo;
-	if (demo.Construct(1024, 730, 4, 4))
-		demo.Start();
+	App game;
+	if (game.Construct(1024, 730, 1, 1))
+		game.Start();
 	return 0;
 }
