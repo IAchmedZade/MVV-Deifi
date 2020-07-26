@@ -1822,6 +1822,7 @@ namespace olc
 
 	void PixelGameEngine::DrawDecal(const olc::vf2d& pos, olc::Decal *decal, const olc::vf2d& scale, const olc::Pixel& tint)
 	{
+		if (decal == nullptr) return;
 		olc::vf2d vScreenSpacePos =
 		{
 			(pos.x * vInvScreenSize.x) * 2.0f - 1.0f,
