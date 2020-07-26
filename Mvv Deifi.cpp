@@ -115,12 +115,12 @@ struct Station {
 		if (direction < 0)
 		{
 			x = decal->sprite->width / 3;
-			y = 3 * decal->sprite->height / 2;
+			y = 4 * decal->sprite->height / 2;
 		}
 		else
 		{
 			x = decal->sprite->width / 3;
-			y = (-3) * decal->sprite->height / 2;
+			y = (-2) * decal->sprite->height / 2;
 		}
 		return std::pair<int, int>{ pos.first + cos(angle) * x - sin(angle) * y,
 			pos.second + sin(angle) * x + cos(angle) * y};
@@ -810,11 +810,10 @@ public:
 		int cnt = 0;
 		for (auto& slave : graph.slaves) {
 			if (slave.pos == station.pos) {
-				int x = station.pos.first + 5 + 5 * cnt;
-				int y = station.pos.second;
-				olc::vf2d vector{ cos(station.angle) * x - sin(station.angle) * y,
-								 sin(station.angle) * x + cos(station.angle) * y };
-				DrawDecal(vector, slave.decal);
+				int x = 5 + 5 * cnt;
+				olc::vf2d vector{ station.pos.first + cos(station.angle) * x,
+								  station.pos.second + sin(station.angle) * x };
+				DrawRotatedDecal(vector, slave.decal, station.angle);
 				++cnt;
 			}
 		}
