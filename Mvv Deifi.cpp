@@ -792,6 +792,18 @@ public:
 		for (auto& train : graph.trains) {
 			train.decal = new olc::Decal(new olc::Sprite("./Sprites/SBahn.png"));
 		}
+
+		for (auto& line : graph.lines) {
+			for (int i = 1; i < line.size(); ++i) {
+				std::pair<int, int> pos1 = graph.stations[line[i]].lanePosition(1);
+				std::pair<int, int> pos2 = graph.stations[line[i - 1]].lanePosition(1);
+				DrawLine(pos1.first, pos1.second, pos2.first, pos2.second, olc::WHITE);
+
+				pos1 = graph.stations[line[i]].lanePosition(-1);
+				pos2 = graph.stations[line[i - 1]].lanePosition(-1);
+				DrawLine(pos1.first, pos1.second, pos2.first, pos2.second, olc::WHITE);
+			}
+		}
 	}
 
 	void AddStation(std::pair<int, int>& pos, int id) {
