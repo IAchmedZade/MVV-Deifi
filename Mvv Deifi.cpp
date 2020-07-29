@@ -128,8 +128,8 @@ struct Station {
 };
 
 struct Train {
-	olc::Decal* decal;
-	DevilishBlockade* blockade;
+	olc::Decal* decal = nullptr;
+	DevilishBlockade* blockade = nullptr;
 	float angle = 0.f;
 
 	int id;
@@ -349,9 +349,6 @@ struct Graph {
 			// Unboard Slave
 			if (slave.destination == currentStationId && train.myPassengers.count(slave.id)) {
 				train.myPassengers.erase(slave.id);
-				if (slave.timeToStartWorking < globalTime) {
-					++score;
-				}
 				for (int i = 0; i < slaves.size(); ++i) {
 					if (slaves[i].id == slave.id) {
 						slaves.erase(slaves.begin() + i);
@@ -426,7 +423,6 @@ struct Bomb {
 };
 
 struct Deifi {
-public:
 	std::pair<int, int> pos;
 	int nBombs;
 
@@ -594,6 +590,7 @@ public:
 	}
 
 	void DisplayData() {
+		UpdateScore();
 		FillRect(110, 10, 200, 30, olc::BLANK);
 		DrawString(110, 10, std::to_string(graph.score), olc::RED, 2);
 		if (!(graph.globalTime % 10)) {
@@ -610,6 +607,16 @@ public:
 		FillRect(110, 70, 200, 30, olc::BLANK);
 		DrawString(110, 70, std::to_string(myDeifi.nBombs), olc::RED, 2);
 	}
+
+	void UpdateScore() {
+		for (auto& slave : graph.slaves) {
+			if (slave.origin == -1 && slave.timeToStartWorking + 10 < graph.globalTime) {
+				++graph.score;
+				slave.timeToStartWorking = graph.globalTime;
+			}
+		}
+	}
+
 
 	bool HandleUserInput()
 	{
@@ -672,123 +679,6 @@ public:
 	}
 
 	void DrawGraphOfStations() {
-		/*
-		int x = ScreenWidth() / 2;
-		int y = ScreenHeight() / 2;
-		std::pair<int, int> position{ x,y };
-		graph.adjacencyList.resize(20);
-		int midIdx = 12;
-		int rightSplit = 9;
-		for (int i = 0; i < midIdx; ++i) {
-			AddStation(position, i);
-			if (i > 0) {
-				graph.adjacencyList[i].push_back(i - 1);
-			}
-			if (i < 8) {
-				graph.adjacencyList[i].push_back(i + 1);
-			}
-			position.first += 60;
-			if (i > 1 && i <= rightSplit) {
-				graph.trains[0].line.push_back(i);
-				graph.trains[1].line.push_back(i);
-			}
-			graph.trains[2].line.push_back(i);
-		}
-
-		{
-			position.first = x + 60;
-			position.second = y - 60;
-
-			AddStation(position, midIdx);
-			graph.trains[0].line.insert(graph.trains[0].line.begin(), midIdx);
-			graph.adjacencyList[midIdx].push_back(2);
-			graph.adjacencyList[2].push_back(midIdx);
-			++midIdx;
-
-			position.first -= 60;
-			position.second = y - 60;
-
-			AddStation(position, midIdx);
-			graph.trains[0].line.insert(graph.trains[0].line.begin(), midIdx);
-			graph.adjacencyList[midIdx - 1].push_back(midIdx);
-			graph.adjacencyList[midIdx].push_back(midIdx - 1);
-			++midIdx;
-
-			position.first += 60 * 10;
-
-			AddStation(position, midIdx);
-			graph.trains[0].line.push_back(midIdx);
-			graph.adjacencyList[midIdx].push_back(rightSplit);
-			graph.adjacencyList[rightSplit].push_back(midIdx);
-			++midIdx;
-
-			position.first += 60;
-
-			AddStation(position, midIdx);
-			graph.trains[0].line.push_back(midIdx);
-			graph.adjacencyList[midIdx].push_back(midIdx - 1);
-			graph.adjacencyList[midIdx - 1].push_back(midIdx);
-			++midIdx;
-		}
-
-		{
-			position.first = x + 60;
-			position.second = y + 60;
-
-			AddStation(position, midIdx);
-
-			graph.trains[1].line.insert(graph.trains[1].line.begin(), midIdx);
-			graph.adjacencyList[midIdx].push_back(2);
-			graph.adjacencyList[2].push_back(midIdx);
-			++midIdx;
-
-			position.first -= 60;
-
-			AddStation(position, midIdx);
-
-			graph.trains[1].line.insert(graph.trains[1].line.begin(), midIdx);
-			graph.adjacencyList[midIdx].push_back(midIdx - 1);
-			graph.adjacencyList[midIdx - 1].push_back(midIdx);
-			++midIdx;
-
-			position.first += 60 * 10;
-
-			AddStation(position, midIdx);
-			graph.trains[1].line.push_back(midIdx);
-			graph.adjacencyList[midIdx].push_back(rightSplit);
-			graph.adjacencyList[rightSplit].push_back(midIdx);
-			++midIdx;
-
-			position.first += 60;
-
-			AddStation(position, midIdx);
-			graph.trains[1].line.push_back(midIdx);
-			graph.adjacencyList[midIdx].push_back(midIdx - 1);
-			graph.adjacencyList[midIdx - 1].push_back(midIdx);
-			++midIdx;
-		}
-
-		//DrawConnections();
-		{
-			graph.trains[0].id = 0;
-			graph.trains[0].myLine = 0;
-			graph.trains[0].direction = 1;
-			graph.trains[0].pos = graph.stations[graph.trains[0].line[0]].lanePosition(1);
-			graph.trains[0].state = boarding;
-
-			graph.trains[1].id = 1;
-			graph.trains[1].myLine = 1;
-			graph.trains[1].direction = 1;
-			graph.trains[1].pos = graph.stations[graph.trains[1].line[0]].lanePosition(1);
-			graph.trains[1].state = boarding;
-
-			graph.trains[2].id = 2;
-			graph.trains[2].myLine = 2;
-			graph.trains[2].direction = 1;
-			graph.trains[2].pos = graph.stations[graph.trains[2].line[0]].lanePosition(1);
-			graph.trains[2].state = boarding;
-		}
-		*/
 		for (auto& train : graph.trains) {
 			train.decal = new olc::Decal(new olc::Sprite("./Sprites/SBahn.png"));
 		}
