@@ -22,7 +22,7 @@ struct Passenger {
 	std::pair<int, int> pos;
 	int origin;
 	int destination;
-	int needLine = 0;
+	int delayed = 0;
 	std::unordered_set<int> okLines;
 	int needDirection = 0;
 
@@ -328,35 +328,33 @@ struct Graph {
 
 	void boardPassengers(Train& train) {
 		int currentStationId = stations[train.line[train.idx]].id;
-		for (auto& slave : slaves) {
-
-
+		for (auto& slave : slaves)
+		{
 			// Board slave
 			if (!train.myPassengers.count(slave.id) &&
 				slave.origin == currentStationId &&
 				slave.needDirection == train.direction &&
 				slave.okLines.size() &&
-				slave.okLines.count(train.myLine)) {
+				slave.okLines.count(train.myLine))
+			{
 				train.myPassengers.insert(slave.id);
 				slave.timeToStartWorking += globalTime;
 				slave.origin = -1;
 				delete slave.decal;
 				slave.decal = nullptr;
-				//slave.decal = new olc::Decal(new olc::Sprite("./Sprites/BlackBox.png"));
 				slave.pos = { 0,0 };
 			}
 
 			// Unboard Slave
 			if (slave.destination == currentStationId && train.myPassengers.count(slave.id)) {
 				train.myPassengers.erase(slave.id);
-				for (int i = 0; i < slaves.size(); ++i) {
-					if (slaves[i].id == slave.id) {
-						slaves.erase(slaves.begin() + i);
-						break;
-					}
-				}
+				slave.origin = -2;
 			}
 		}
+		slaves.erase(
+			std::remove_if(slaves.begin(), slaves.end(), [](auto& slave) {return slave.delayed > 100 || slave.origin == -2;}),
+			slaves.end()
+		);
 	}
 
 	void generateSlaves() {
@@ -383,7 +381,9 @@ struct Graph {
 				}
 
 				int direction = (start < end ? 1 : -1);
-				slaves.emplace_back(currentSize + i, 10 * (20 + abs(start - end)),
+
+				// Make sure there are no collisions with ids!!
+				slaves.emplace_back(globalTime + i, 10 * (20 + abs(start - end)),
 					stations[originId].pos, originId, destinationId,
 					okLines, direction);
 			}
@@ -610,9 +610,9 @@ public:
 
 	void UpdateScore() {
 		for (auto& slave : graph.slaves) {
-			if (slave.origin == -1 && slave.timeToStartWorking + 10 < graph.globalTime) {
+			if (slave.origin == -1 && slave.timeToStartWorking + slave.delayed < graph.globalTime) {
+				++slave.delayed;
 				++graph.score;
-				slave.timeToStartWorking = graph.globalTime;
 			}
 		}
 	}
