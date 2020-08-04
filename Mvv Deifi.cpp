@@ -22,7 +22,6 @@ struct Passenger {
 	std::pair<int, int> pos;
 	int origin;
 	int destination;
-	int delayed = 0;
 	std::unordered_set<int> okLines;
 	int needDirection = 0;
 
@@ -128,7 +127,7 @@ struct Station {
 };
 
 struct Train {
-	olc::Decal* decal = nullptr;
+	olc::Decal* decal = new olc::Decal(new olc::Sprite("./Sprites/SBahn.png"));
 	DevilishBlockade* blockade = nullptr;
 	float angle = 0.f;
 
@@ -197,10 +196,11 @@ struct Graph {
 
 	Graph() {}
 
-	Graph(int nTrains, int width, int height) {
+	// Initialize graph of stations and trains and everything
+	Graph(int width, int height) {
 		std::pair<int, int> dummy{ width, height };
-		for (int id = 0; id < nTrains;++id) {
-			trains.push_back(Train(id, dummy, boarding, 1, id));
+		for (int id = 0; id < 10;++id) {
+			trains.push_back(Train(id, dummy, boarding, 1, id % 5));
 		}
 		int x = width / 2;
 		int y = height / 2;
@@ -248,13 +248,20 @@ struct Graph {
 		trains[2].line = std::vector<int>{ 47,46,45,44,43,5,6,7,8,9,10,11,12,13,14,15,51,52,53 };
 		trains[3].line = std::vector<int>{ 24,23,22,21,20,19,5,6,7,8,9,10,11,12,13,14,15,34,33,32,31 };
 		trains[4].line = std::vector<int>{ 30,29,28,27,26,25,8,9,10,11,12,13,14,15,34,48,49,50 };
+		for (int i = 5; i < 10; ++i) {
+			trains[i].line = trains[i - 5].line;
+		}
 
 		for (int i = 0; i < 5; ++i) {
 			lines.push_back(trains[i].line);
+			trains[i].pos = stations[trains[i].line[0]].lanePosition(1);
+			trains[i].idx = 0;
+			trains[i + 5].pos = stations[trains[i + 5].line.back()].lanePosition(1);
+			trains[i + 5].idx = lines[i].size() - 1;
 		}
-		for (auto& train : trains) {
+		/*for (auto& train : trains) {
 			train.pos = stations[train.line[0]].lanePosition(1);
-		}
+		}*/
 	}
 
 	void handleTrains() {
@@ -352,7 +359,7 @@ struct Graph {
 			}
 		}
 		slaves.erase(
-			std::remove_if(slaves.begin(), slaves.end(), [](auto& slave) {return slave.delayed > 100 || slave.origin == -2;}),
+			std::remove_if(slaves.begin(), slaves.end(), [](auto& slave) {return slave.origin == -2;}),
 			slaves.end()
 		);
 	}
@@ -528,7 +535,7 @@ public:
 
 	bool OnUserCreate() override
 	{
-		graph = Graph(5, ScreenWidth(), ScreenHeight());
+		graph = Graph(ScreenWidth(), ScreenHeight());
 		Clear(olc::BLANK);
 		DrawInstructions();
 		InitializeDeifiAndMvvRep();
@@ -610,8 +617,8 @@ public:
 
 	void UpdateScore() {
 		for (auto& slave : graph.slaves) {
-			if (slave.origin == -1 && slave.timeToStartWorking + slave.delayed < graph.globalTime) {
-				++slave.delayed;
+			if (slave.origin == -1 && slave.timeToStartWorking + 10 < graph.globalTime) {
+				slave.timeToStartWorking = graph.globalTime;
 				++graph.score;
 			}
 		}
@@ -660,29 +667,33 @@ public:
 	}
 
 	void MoveMvvRep() {
-		if (!mvvRep.queueOfDetonations.empty()) {
-			if (mvvRep.Move() && mvvRep.removeBlockade()) {
-				for (auto& train : graph.trains) {
-					if (train.blockade && train.blockade->pos == mvvRep.queueOfDetonations[0]) {
-						train.blockade->pos = std::pair<int, int>{ ScreenWidth() ,ScreenHeight() };
-					}
+		if (!mvvRep.queueOfDetonations.empty() && mvvRep.Move() && mvvRep.removeBlockade()) {
+			for (auto& train : graph.trains) {
+				if (train.blockade && train.blockade->pos == mvvRep.queueOfDetonations[0]) {
+					train.blockade->pos = std::pair<int, int>{ ScreenWidth() ,ScreenHeight() };
+					delete train.blockade->decal;
+					train.blockade->decal = nullptr;
 				}
-				for (auto it = graph.devilishBlockade.begin(); it != graph.devilishBlockade.end(); ++it) {
-					if ((*it)->pos == mvvRep.queueOfDetonations[0]) {
-						graph.devilishBlockade.erase(it);
-						break;
-					}
-				}
-				mvvRep.eraseFirstDetonation();
 			}
+			graph.devilishBlockade.erase(
+				std::remove_if(
+					graph.devilishBlockade.begin(), graph.devilishBlockade.end(),
+					[&](auto& det) {return det->pos == mvvRep.queueOfDetonations[0];}
+				),
+				graph.devilishBlockade.end()
+			);
+
+			mvvRep.eraseFirstDetonation();
+
 		}
 	}
 
 	void DrawGraphOfStations() {
-		for (auto& train : graph.trains) {
+		/*for (auto& train : graph.trains) {
 			train.decal = new olc::Decal(new olc::Sprite("./Sprites/SBahn.png"));
-		}
+		}*/
 
+		// Draw Rails
 		for (auto& line : graph.lines) {
 			for (int i = 1; i < line.size(); ++i) {
 				std::pair<int, int> pos1 = graph.stations[line[i]].lanePosition(1);
