@@ -23,6 +23,7 @@ struct Passenger {
 	int origin;
 	int destination;
 	std::unordered_set<int> okLines;
+	int delayed = 0;
 	int needDirection = 0;
 
 	Passenger(int id = -1, int timeToStartWorking = 900, std::pair<int, int> pos = { 0,0 },
@@ -259,9 +260,6 @@ struct Graph {
 			trains[i + 5].pos = stations[trains[i + 5].line.back()].lanePosition(1);
 			trains[i + 5].idx = lines[i].size() - 1;
 		}
-		/*for (auto& train : trains) {
-			train.pos = stations[train.line[0]].lanePosition(1);
-		}*/
 	}
 
 	void handleTrains() {
@@ -390,7 +388,7 @@ struct Graph {
 				int direction = (start < end ? 1 : -1);
 
 				// Make sure there are no collisions with ids!!
-				slaves.emplace_back(globalTime + i, 10 * (20 + abs(start - end)),
+				slaves.emplace_back(globalTime + i, globalTime + 10 * (100 + abs(start - end)),
 					stations[originId].pos, originId, destinationId,
 					okLines, direction);
 			}
@@ -516,13 +514,6 @@ class App : public olc::PixelGameEngine
 	Engel mvvRep;
 	std::vector<Bomb> tickingBombs;
 	std::vector<std::pair<int, int>> detonations;
-	olc::Sprite* spr;
-
-
-	int placeholder = 0;
-
-	olc::Sprite* deifiSprite;
-	olc::Decal* deifiDecal;
 
 	Graph graph;
 
@@ -617,13 +608,13 @@ public:
 
 	void UpdateScore() {
 		for (auto& slave : graph.slaves) {
-			if (slave.origin == -1 && slave.timeToStartWorking + 10 < graph.globalTime) {
+			if (slave.timeToStartWorking + 10 < graph.globalTime) { // slave.origin == -1 &&
 				slave.timeToStartWorking = graph.globalTime;
+				++slave.delayed;
 				++graph.score;
 			}
 		}
 	}
-
 
 	bool HandleUserInput()
 	{
@@ -689,10 +680,6 @@ public:
 	}
 
 	void DrawGraphOfStations() {
-		/*for (auto& train : graph.trains) {
-			train.decal = new olc::Decal(new olc::Sprite("./Sprites/SBahn.png"));
-		}*/
-
 		// Draw Rails
 		for (auto& line : graph.lines) {
 			for (int i = 1; i < line.size(); ++i) {
@@ -723,6 +710,10 @@ public:
 		int cnt = 0;
 		for (auto& slave : graph.slaves) {
 			if (slave.pos == station.pos) {
+				if (slave.delayed == 30) {
+					delete slave.decal;
+					slave.decal = new olc::Decal(new olc::Sprite("./Sprites/PassengerRed.png"));
+				}
 				int x = 5 + 5 * cnt;
 				olc::vf2d vector{ station.pos.first + cos(station.angle) * x,
 								  station.pos.second + sin(station.angle) * x };
