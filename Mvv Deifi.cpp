@@ -419,14 +419,6 @@ struct Graph {
 	}
 };
 
-struct Bomb {
-	std::pair<int, int> pos;
-	int timeToDetonation;
-	int detonationTime = 5;
-	int reach = 20;
-	Bomb(std::pair<int, int> pos, int time) : pos(pos), timeToDetonation(time) {}
-};
-
 struct Deifi {
 	std::pair<int, int> pos;
 	int nBombs;
@@ -512,7 +504,7 @@ class App : public olc::PixelGameEngine
 {
 	Deifi myDeifi;
 	Engel mvvRep;
-	std::vector<Bomb> tickingBombs;
+
 	std::vector<std::pair<int, int>> detonations;
 
 	Graph graph;
